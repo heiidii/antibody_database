@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import pandas as pd
 import s3fs
 from multiprocessing import Pool
@@ -47,7 +48,9 @@ def csvs_to_fastas(csv_path, filter_by=None):
             g = gzip.GzipFile(fileobj=f)
             filter_row = g.readline()
             print(filter_row)
-        meta_dict = _read_metadata(filter_row)
+        meta_dict = ','.join(pd.read_csv(csv_path, nrows=0).columns)
+        meta_dict = json.loads(meta_dict)
+        #meta_dict = _read_metadata(filter_row)
         for key, value in filter_by.items():
             if key in meta_dict:
                 if meta_dict[key].find(value)==-1:
@@ -131,12 +134,13 @@ def linclust_to_df(linclust_fasta, s3_path, out_path):
         csv_file = f"s3://{file}"
         file_id = os.path.basename(csv_file).split('_')[0]
         if file_id in file_to_heavy_map:
-            df = pd.read_csv(csv_file, skiprows=[0], usecols=OAS_columns, low_memory=True)
+            df = pd.read_csv(csv_file, skiprows=[0], low_memory=True)
             df_filter =  df[df[HEAVY_ID_COL].isin(file_to_heavy_map[file_id]) &
                                 df[LIGHT_ID_COL].isin(file_to_light_map[file_id])]
             outfile = os.path.basename(file).split('.')[0] + '_filtered.csv.gz'
             df_filter.to_csv(path_or_buf = f'{out_path}/{outfile}', compression="gzip", index = None, sep = ",",
                                  header=True, encoding='utf-8-sig')
+            
 
 
 
@@ -145,11 +149,17 @@ if __name__ == '__main__':
     #filters = {'Vaccine': 'None','Disease': 'None'}
     #process_files(outpath='processed_pOAS_fastas_novac_nodis', basename='pairedseqs_novac_nodis',
     #            filter_by=filters)
+    filters = {'Vaccine': 'None','Disease': 'None','Species':'human'}
+    process_files(outpath='processed_pOAS_fastas_human_novac_nodis', basename='pairedseqs_human_novac_nodis',
+                filter_by=filters)
+    filters = {'Species':'human'}
+    process_files(outpath='processed_pOAS_fastas_human', basename='pairedseqs_human',
+                filter_by=filters)
     #linclust_to_df('linclust_out/pOAS_hlcombined_novac_nodis_linclust_seqid95c80_rep_seq.fasta',
     #               "s3://prescient-data-dev/sandbox/freyn6/raw/poas/",
     #               "/gstore/scratch/u/mahajs17/repositories/antibody_database/linclust_naive")
-    linclust_to_df('linclust_out/pOAS_hlcombined_linclust_seqid95c80_rep_seq.fasta',
-                   "s3://prescient-data-dev/sandbox/freyn6/raw/poas/",
-                   "/gstore/scratch/u/mahajs17/repositories/antibody_database/linclust_all")
+    #linclust_to_df('linclust_out/pOAS_hlcombined_linclust_seqid95c80_rep_seq.fasta',
+    #               "s3://prescient-data-dev/sandbox/freyn6/raw/poas/",
+    #               "/gstore/scratch/u/mahajs17/repositories/antibody_database/linclust_all")
    
 
